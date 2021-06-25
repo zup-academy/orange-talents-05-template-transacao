@@ -21,6 +21,42 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+  
+  postgres:
+    image: 'postgres:alpine'
+    volumes:
+      - postgres-volume:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: keycloak
+      POSTGRES_HOST: postgres
+
+  keycloak:
+    image: jboss/keycloak
+    ports:
+      - 18443:8443
+      - 18080:8080
+      - 19990:9990
+    depends_on:
+      # Just a delay to wait for postgres! This is not recommended!
+      - jaeger
+      - kafka
+      - zookeeper
+      - transacoes
+      - postgres
+    environment:
+      DB_VENDOR: postgres
+      DB_ADDR: postgres
+      DB_PORT: 5432
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: password
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: Pa55w0rd
+      POSTGRES_PORT_5432_TCP_ADDR: 127.0.0.1
 
   transacoes:
     image: 'zupacademy/transacoes'
@@ -48,32 +84,6 @@ services:
       - 9411:9411
     environment:
       COLLECTOR_ZIPKIN_HTTP_PORT: 9411
-  
-  # propostas-mysql:
-  #   image: mysql
-  #   networks: 
-  #     - production-networks
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: 8785491
-  #   ports: 
-  #     - "3307:3306"
-
-#   propostas-api:
-#     build:
-#       dockerfile: Dockerfile
-#       context: .
-#     restart: always
-#     image: leonardocosta/propostaapi
-#     container_name: propostaApi
-#     environment:
-#       DB_HOST: "jdbc:mysql://propostas-mysql:3306/proposta?useTimezone=true&serverTimezone=UTC&createDatabaseIfNotExist=true"
-#       DB_PASSWORD: 8785491  
-#     ports:
-#       - "8080:8080"
-#     networks: 
-#       - production-networks
-#     depends_on: 
-#       - "propostas-mysql"
-# networks:
-#   production-networks:
-#     driver: bridge     
+    
+volumes:
+  postgres-volume:
